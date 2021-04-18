@@ -1,0 +1,314 @@
+<?xml version="1.0"?>
+<robot name="physics" xmlns:xacro="http://ros.org/wiki/xacro">
+
+
+  <xacro:arg name="zed_model"    default="zed2"/>
+
+  <xacro:include filename="$(find urdf_tutorial)/urdf/lidar.gazebo.xacro" />
+
+  <xacro:property name="wheeldia" value="0.3" />
+  <xacro:property name="wheelwidth" value="0.1" />
+  <xacro:property name="bodywidth" value="0.7" />
+  <xacro:property name="bodylen" value="1.2" />
+  <xacro:property name="bodyheight" value="0.25" />
+  <xacro:property name="pi" value="3.1415" />
+
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+  <material name="black">
+    <color rgba="0 0 0 1"/>
+  </material>
+  <material name="white">
+    <color rgba="1 1 1 1"/>
+  </material>
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+      <mass value="${mass}"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
+    </inertial>
+  </xacro:macro>
+  <xacro:lidar_gazebo />
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${bodylen} ${bodywidth} ${bodyheight}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${bodylen} ${bodywidth} ${bodyheight}"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="20"/>
+  </link>
+
+  <xacro:macro name="wheel" params="prefix suffix reflect">
+
+    <link name="${prefix}_${suffix}_wheel">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${wheeldia/2}" length="0.1"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${wheeldia/2}" length="0.1"/>
+        </geometry>
+      </collision>
+      <xacro:default_inertial mass="2"/>
+    </link>
+
+    <joint name="${prefix}_${suffix}_wheel_joint" type="continuous">
+      <axis xyz="0 1 0" rpy="0 0 0" />
+      <parent link="${prefix}_leg"/>
+      <child link="${prefix}_${suffix}_wheel"/>
+      <origin xyz="${reflect*(bodylen/2-0.16)} 0 0" rpy="0 0 0"/>
+    </joint>
+<!-- This block provides the simulator (Gazebo) with information on a few additional
+    physical properties. See http://gazebosim.org/tutorials/?tut=ros_urdf for more-->
+    <gazebo reference="${prefix}_${suffix}_wheel">
+      <mu1 value="200.0"/>
+      <mu2 value="100.0"/>
+      <kp value="10000000.0" />
+      <kd value="1.0" />
+      <material>Gazebo/Grey</material>
+    </gazebo>
+    <!-- This block connects the wheel joint to an actuator (motor), which informs both
+    simulation and visualization of the robot -->
+    <transmission name="${prefix}_${suffix}_wheel_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <actuator name="${prefix}_${suffix}_wheel_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+      <joint name="${prefix}_${suffix}_wheel_joint">
+        <hardwareInterface>VelocityJointInterface</hardwareInterface>
+      </joint>
+    </transmission>
+  </xacro:macro>
+
+
+  <xacro:macro name="leg" params="prefix reflect">
+    <link name="${prefix}_leg">
+      <visual>
+        <geometry>
+          <box size="${bodylen} 0.08 ${bodyheight}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <material name="white"/>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="${bodylen} 0.08 ${bodyheight}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </collision>
+      <xacro:default_inertial mass="3"/>
+    </link>
+
+    <joint name="base_to_${prefix}_leg" type="fixed">
+      <parent link="base_link"/>
+      <child link="${prefix}_leg"/>
+      <origin xyz="0 ${reflect*(bodywidth-0.3)} 0" />
+    </joint>
+
+    <xacro:wheel prefix="${prefix}" suffix="front" reflect="1"/>
+    <xacro:wheel prefix="${prefix}" suffix="back" reflect="-1"/>
+  </xacro:macro>
+  <xacro:leg prefix="right" reflect="-1" />
+  <xacro:leg prefix="left" reflect="1" />
+
+  <link name="head">
+    <visual>
+      <geometry>
+        <box size="${bodylen/4} ${bodywidth} ${bodyheight/2}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${bodylen/4} ${bodywidth} ${bodyheight}"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="5"/>
+  </link>
+
+  <joint name="head_joint" type="fixed">
+    <axis rpy="0 0 0" xyz="1 0 0"/>
+    <parent link="base_link"/>
+    <child link="head"/>
+   <origin rpy="0 0 0" xyz="${-bodylen/4} 0 ${bodyheight*0.75}"/>
+  </joint>
+<!--
+  <link name="right_front_wheel">
+    <visual>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="2"/>
+  </link>
+
+  <joint name="right_front_wheel_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="0 1 0"/>
+    <parent link="base_link"/>
+    <child link="right_front_wheel"/>
+    <origin rpy="0 0 0" xyz="0.44 0.4 0"/>
+  </joint>
+  
+
+
+  <link name="right_back_wheel">
+    <visual>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="2"/>
+  </link>
+
+  <joint name="right_back_wheel_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="0 1 0"/> 
+    <parent link="base_link"/>
+    <child link="right_back_wheel"/>
+    <origin rpy="0 0 0" xyz="-0.44 0.4 0"/>
+  </joint>
+
+  <link name="left_back_wheel">
+    <visual>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="2"/>
+  </link>
+
+  <joint name="left_back_wheel_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="0 1 0"/>
+    <parent link="base_link"/>
+    <child link="left_back_wheel"/>
+    <origin rpy="0 0 0" xyz="-0.44 -0.4 0"/>
+  </joint>
+
+  <link name="left_front_wheel">
+    <visual>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin rpy="1.57075 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.1" radius="0.15"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="2"/>
+  </link>
+
+  <joint name="left_front_wheel_joint" type="continuous">
+    <axis rpy="0 0 0" xyz="0 1 0"/>
+    <parent link="base_link"/>
+    <child link="left_front_wheel"/>
+    <origin rpy="0 0 0" xyz="0.44 -0.4 0"/>
+  </joint>
+
+
+-->
+
+  
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/</robotNamespace>
+    </plugin>
+  </gazebo>
+<!--
+  <link name="motor">
+    <visual>
+      <geometry>
+        <box size="${bodylen/4} ${bodywidth} ${bodyheight/2}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${bodylen/4} ${bodywidth} ${bodyheight}"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="5"/>
+  </link>
+
+  <joint name="motor_joint" type="fixed">
+    <axis rpy="0 0 0" xyz="1 0 0"/>
+    <parent link="base_link"/>
+    <child link="motor"/>
+   <origin rpy="0 0 0" xyz="${-bodylen/4} 0 ${bodyheight}"/>
+  </joint>
+-->
+
+<!--
+ 
+  <xacro:macro name="wheel" params="prefix suffix reflect">
+    <link name="${prefix}_${suffix}_wheel">
+      <visual>
+        <origin rpy="${pi/2} 0 0" xyz="0 0 0"/>
+        <geometry>
+          <cylinder length="${wheelwidth}" radius="${wheeldia/2}"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin rpy="${pi/2} 0 0" xyz="0 0 0"/>
+        <geometry>
+          <cylinder length="${wheelwidth}" radius="${wheeldia/2}"/>
+        </geometry>
+      </collision>
+      <xacro:default_inertial mass="2"/>
+    </link>
+
+    <joint name="${prefix}_${suffix}_wheel_joint" type="continuous">
+      <axis rpy="0 0 0" xyz="0 1 0"/>
+      <parent link="base_link"/>
+      <child link="${prefix}_${suffix}_wheel"/>
+      <origin rpy="0 0 0" xyz="${(bodylen/2-0.16)*reflecta} ${reflectb*(bodywidth+wheelwidth)/2} 0"/>
+    </joint>
+    <xacro:wheel prefix="right" suffix="front" reflecta="1" reflectb="1"/>
+    <xacro:wheel prefix="right" suffix="back" reflecta="1" reflectb="-1"/>
+    <xacro:wheel prefix="left" suffix="front" reflecta="-1" reflectb="1"/>
+    <xacro:wheel prefix="left" suffix="back" reflecta="-1" reflectb="-1"/>
+  </xacro:macro>
+-->
+  
+
+</robot>
